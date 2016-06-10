@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 )
@@ -12,12 +12,12 @@ type Page struct {
 }
 
 func (p *Page) save() error {
-	filename := p.Title + ".txt"
+	filename := "data/" + p.Title + ".txt"
 	return ioutil.WriteFile(filename, p.Body, 0600)
 }
 
 func loadPage(title string) (*Page, error) {
-	filename := title + ".txt"
+	filename := "data/" + title + ".txt"
 	body, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -30,17 +30,33 @@ func viewHander(w http.ResponseWriter, r *http.Request) {
 
 	p, err := loadPage(title)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Error 404: Page not found")
-	} else {
-		fmt.Fprintf(w, "<h1>%s</h1><div>%s</div>", p.Title, p.Body)
+		p = &Page{Title: title}
 	}
+	t, _ := template.ParseFiles("templates/view.html")
+	t.Execute(w, p)
 }
+
+func editHandler(w http.ResponseWriter, r *http.Request) {
+	title := r.URL.Path[len("/edit/"):]
+	p, err := loadPage(title)
+	if err != nil {
+		p = &Page{Title: title}
+	}
+	t, _ := template.ParseFiles("templates/edit.html")
+	t.Execute(w, p)
+}
+
+func saveHandler(w http.ResponseWriter, r *http.Request) {
+	title := r.URL.Path[len("/save/"):]
+	body := r.FormValue("body")
+	p := &Page{Title: title, Body: []byte(body)}
+	p.save()
+	http.Redirect(w, r, "/view/"+title, http.StatusFound)
+}
+
 func main() {
-	// p1 := &Page{Title: "Test Page", Body: []byte("This is the sample page")}
-	// p1.save()
-	// p2, _ := loadPage("Test Page")
-	// fmt.Println(string(p2.Body))
 	http.HandleFunc("/view/", viewHander)
+	http.HandleFunc("/edit/", editHandler)
+	http.HandleFunc("/save/", saveHandler)
 	http.ListenAndServe(":8080", nil)
 }
