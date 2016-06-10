@@ -30,7 +30,8 @@ func viewHander(w http.ResponseWriter, r *http.Request) {
 
 	p, err := loadPage(title)
 	if err != nil {
-		p = &Page{Title: title}
+		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
+		return
 	}
 	t, _ := template.ParseFiles("templates/view.html")
 	t.Execute(w, p)
